@@ -1,52 +1,58 @@
+from __future__ import print_function
+
 import math
+import warnings
 import itertools as it
 
+
 class Party:
-    def __init__(self,weight,name):
+    def __init__(self, weight, name):
         self.weight=weight
         self.name=name
-    def __eq__(self,other):
-        if self.name==other.name:
-            return True
-        else:
-            return False
-    def __ne__(self,other):
+
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __ne__(self, other):
         return not (self==other)
+
     def __str__(self):
         return "Party %s with weight %s"%(self.name,self.weight)
-    
+
     def __repr__(self):
         return self.__str__()
 
+
 class Game:
-    def __init__(self,quota,weights=None,parties=None):
+    def __init__(self, quota, weights=None, parties=None):
         if parties is None:
             if weights is None:
                 raise TypeError("You need to put weights or parties as parameter while initializing the game")
             else:
-                self.weights=weights
-                self.parties=[Party(weights[i],i) for i in range(len(weights))]
+                self.weights = weights
+                self.parties = [Party(weights[i],i) for i in range(len(weights))]
         else:
-            self.parties=parties
-            self.weights=[party.weight for party in parties]
-            
+            self.parties = parties
+            self.weights = [party.weight for party in parties]
+
         self.quota=quota
-        
+
         self.N=len(self.weights)
         self.banzhaf=None
         self.shapley_shubik=None
         self.s_weights=float(sum(self.weights))
         self.nominal=[weight/self.s_weights for weight in self.weights]
-        
+
     def __len__(self):
         return len(self.parties)
+
     def __str__(self):
         return "The game consists of %s parties, the threshold is %s"%(len(self.parties),self.quota)
 
-    """
-        This function launches calculation of all implemented indeces
-    """
     def calc(self):
+        """
+        This function launches calculation of all implemented indeces
+        """
         # find if there's a party with seats greater or equal to quota
         ge_quota=map(lambda x: 1 if x>=self.quota else 0,self.weights)
         num_ge_quota=sum(ge_quota)
@@ -57,15 +63,15 @@ class Game:
             self.banzhaf=map(lambda x: x/float(num_ge_quota),ge_quota)
             self.shapley_shubik=map(lambda x: x/float(num_ge_quota),ge_quota)
 
-    """
-        Computes Banzhaf power index using generating function approach.
-    """
     def calc_banzhaf(self):
+        """
+        Computes Banzhaf power index using generating function approach.
+        """
         coeffs=self._coeffs_of_general_GF("Banzhaf")
         pows=[sum(self._coeffs_of_player_GF(coeffs,weight,"Banzhaf")[(self.quota-weight):self.quota]) for weight in self.weights]
         s_pows=float(sum(pows))
-        self.banzhaf=map(lambda x: x/s_pows,pows)
-        
+        self.banzhaf=list(map(lambda x: x/s_pows,pows))
+
     def calc_shapley_shubik(self):
         coeffs=self._coeffs_of_general_GF("ShapleyShubik")
         pows=[0 for n in range(self.N)]
@@ -83,8 +89,8 @@ class Game:
         #pows=map(lambda x: sum(*x),pl_coeffs)
         #pows=[sum(lambda x: sum(x),self._coeffs_of_player_GF(coeffs,weight,"ShapleyShubik")[(self.quota-weight):self.quota][0:(self.N)])) for weight in self.weights]
         s_pows=float(sum(pows))
-        self.shapley_shubik=map(lambda x: x/s_pows,pows)
-        
+        self.shapley_shubik=list(map(lambda x: x/s_pows,pows))
+
     """
         Computes coefficients of the generating function of the game.
     """
@@ -93,13 +99,13 @@ class Game:
             return self._coeffs_of_general_GF_bf()
         elif index=="ShapleyShubik":
             return self._coeffs_of_general_GF_sh()
-    
+
     def _coeffs_of_general_GF_bf(self):
         N=len(self.weights)
         W=sum(self.weights)
-        
+
         coeffs=self.GF_coeffs(N,W,"Banzhaf")
-        
+
         for j in range(1,N+1):
             for k in range(1,W+1):
                 if k<self.weights[j-1]:
@@ -109,14 +115,14 @@ class Game:
             if j>2:
                 coeffs[j-2]=None # free memory
         return coeffs[-1]
-    
+
     def _coeffs_of_general_GF_sh(self):
         N=len(self.weights)
         W=sum(self.weights)
         q=self.quota
 
         coeffs=self.GF_coeffs(N,q,"ShapleyShubik")
-        
+
         for i in range(1,N+1):
             for k in range(1,i+1):
                 coeffs[i].append([])
@@ -136,7 +142,7 @@ class Game:
             if i>2:
                 pass#coeffs[i-2]=None # free memory
         return coeffs[-1]
-                
+
     def GF_coeffs(self,N,q,index):
         if index=="ShapleyShubik":
             coeffs=[[[1]+[0 for y in range(1,q+1)]] for j in range(N+1)]# a[j][0][0]=1
@@ -145,8 +151,8 @@ class Game:
             coeffs[0][0][0]=1
             return coeffs
         elif index=="Banzhaf":
-            coeffs=[[1] for i in xrange(N+1)] # makes a[j][0]=1
-            coeffs[0]=[0 for i in xrange(q+1)]# makes a[0][k]=0
+            coeffs=[[1] for i in range(N+1)] # makes a[j][0]=1
+            coeffs[0]=[0 for i in range(q+1)]# makes a[0][k]=0
             coeffs[0][0]=1
             return coeffs
 
@@ -201,7 +207,7 @@ class Game:
             pow_indices["Banzhaf Power Index"]=[self.banzhaf[el[0]] for el in reordered_hashed_parties]
         if "nominal" in indices and self.nominal is not None:
             pow_indices["% of seats"]=[self.nominal[el[0]] for el in reordered_hashed_parties]
-        
+
         try:
             import matplotlib.pyplot as plt
             plt.rcParams['figure.figsize']=12,9
@@ -213,13 +219,14 @@ class Game:
             from matplotlib.gridspec import GridSpec
             from matplotlib.colors import ColorConverter
             CC=ColorConverter()
+
         except ImportError as ex:
-            print "plot() function requires matplotlib library which is not installed on your computer"
+            warnings.warn("plot() function requires matplotlib library which is not installed on your computer")
             raise ex
-        
+
         # make a pie chart look nices as described here: http://nxn.se/post/46440196846/making-nicer-looking-pie-charts-with-matplotlib
-        
-        
+
+
         #colors_cycle=it.cycle('bgrmcyk')# blue, green, red, ...
         #colors=[colors_cycle.next() for weight in self.weights]
         gray_scales=[i/100.0 for i in sorted(range(50,100,10),reverse=True)]
@@ -236,9 +243,9 @@ class Game:
             "Khaki":"#F0E68C",    #(240,230,140),
             "Thistle":"#D8BFD8" #(216,191,216)
             }
-        
+
         design="color"
-        
+
         if design=="gray":
             colors_cycle=it.cycle(gray_scales)# blue, green, red, ...
             colors_raw=[colors_cycle.next() for weight in self.weights]
@@ -249,14 +256,14 @@ class Game:
             colors_cycle=it.cycle(rgb_colors.values())# blue, green, red, ...
             colors_raw=[colors_cycle.next() for weight in self.weights]
             colors=colors_raw
-        
+
         I=len(pow_indices)
         the_grid = GridSpec(1, I)
         i=0
         labels=[player.name for player in reordered_parties]
-        
+
         labels_raw=[str(player.name) for player in reordered_parties]
-        
+
         labels=[]
         for label in labels_raw:# if the name of the party is too long split it in two lines
             if len(label)>24:
@@ -265,8 +272,8 @@ class Game:
                 if L>1: # if 2 words or more than split in 2 lines
                     label="%s\n    %s"%(' '.join(spl[:3*L/4]),' '.join(spl[3*L/4:]))
             labels.append(label)
-        
-        
+
+
         for name in pow_indices:
             #labels=["%s (%s)"%(reordered_parties[i].name,round(pow_indices[name][i]*100,1)) for i in range(self.N)]
             ax=plt.subplot(the_grid[0, i], aspect=1)
@@ -309,4 +316,4 @@ class Game:
     def hist():
         # to do
         n, bins, patches = plt.hist(x, num_bins, normed=1, facecolor='green', alpha=0.5)
-        print "not implemented yet"
+        raise NotImplementedError
